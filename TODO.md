@@ -51,13 +51,16 @@
   - [x] Add a "more" link to navigate to a full index of posts
   - [x] It should have a header with a title and navigation to categories and tags
 
-## MVP Iteration 2: Continuous Integration
+## MVP Iteration 2: Continuous Integration ✅
 
-- [ ] **GitHub Actions**
-  - [ ] Write a GitHub Action to build the static site as a zip artifact on PR creation
-    - [ ] Use a Linux runner for compatibility
-    - [ ] Ensure the action checks out the code and runs the Swift build
-  - [ ] Write a GitHub Action to build the static site as a zip artifact on a push to main, eventually this will be used to deploy the static site to a web host
+- [x] **GitHub Actions**
+  - [x] Write a GitHub Action to build the static site as a zip artifact on PR creation
+    - [x] Use a Linux runner for compatibility
+    - [x] Ensure the action checks out the code and runs the Swift build
+  - [x] Write a GitHub Action to build the static site as a zip artifact on a push to main
+    - [x] Create GitHub release with the artifact
+    - [x] Use the same Linux environment as PR checks
+    - [x] Include automated testing in the pipeline
 
 ## Future Improvements
 
