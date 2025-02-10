@@ -47,6 +47,25 @@ try await withThrowingTaskGroup(of: Void.self) { group in
 }
 ```
 
+### Performance Optimizations
+
+To ensure fast site generation, we've implemented several optimizations:
+
+1. **Parallel Page Generation**: All pages (posts, tags, categories) are generated concurrently
+2. **Efficient File Handling**: Using atomic writes for file operations
+3. **Smart Caching**: Reusing formatted dates and parsed markdown
+4. **Minimal Dependencies**: No heavy external libraries
+
+### Accessibility and Dark Mode
+
+The blog is designed to be accessible to all users:
+
+- **Semantic HTML**: Using proper heading hierarchy and ARIA roles
+- **Dark Mode Support**: Automatically adapts to system preferences
+- **Responsive Design**: Works great on all screen sizes
+- **High Contrast**: Ensuring readable text in both light and dark modes
+- **Keyboard Navigation**: Full keyboard support for navigation
+
 ## Future Plans
 
 - Add RSS feed support

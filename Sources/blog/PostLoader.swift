@@ -13,6 +13,7 @@ public struct PostMetadata: Codable, Sendable {
     let date: String
     let tags: [String]
     let categories: [String]
+    let updates: [Update]?
 }
 
 public struct PostLoader: Sendable {
@@ -90,7 +91,8 @@ public struct PostLoader: Sendable {
             tags: metadata.tags,
             categories: metadata.categories,
             slug: directory.lastPathComponent,
-            content: content
+            content: content,
+            updates: metadata.updates ?? []
         )
     }
 } 

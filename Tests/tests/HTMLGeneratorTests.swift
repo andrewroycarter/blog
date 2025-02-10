@@ -15,6 +15,13 @@ class HTMLGeneratorTests {
         try? FileManager.default.removeItem(at: testOutputPath)
     }
     
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+    
     func testGenerateBasicSite() async throws {
         let posts = [
             Post(
@@ -264,5 +271,145 @@ class HTMLGeneratorTests {
         let indexHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
         #expect(indexHTML.contains("<span class=\"update-badge\""))
         #expect(indexHTML.contains("Last updated \(formatDate(secondUpdateDate))"))
+    }
+    
+    func testAllPostsPage() async throws {
+        let date = Date()
+        let posts = [
+            Post(
+                title: "First Post",
+                date: date.addingTimeInterval(-86400), // Yesterday
+                tags: ["tag1"],
+                categories: ["cat1"],
+                slug: "first-post",
+                content: "First content"
+            ),
+            Post(
+                title: "Second Post",
+                date: date,
+                tags: ["tag2"],
+                categories: ["cat2"],
+                slug: "second-post",
+                content: "Second content",
+                updates: [Update(date: date, description: "Updated content")]
+            )
+        ]
+        
+        let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: posts)
+        try await generator.generate()
+        
+        let allPostsHTML = try String(contentsOf: testOutputPath.appending(path: "posts/index.html"))
+        
+        // Check page structure
+        #expect(allPostsHTML.contains("<main>"))
+        #expect(allPostsHTML.contains("<h1>All Posts</h1>"))
+        #expect(allPostsHTML.contains("<ul class=\"post-list\">"))
+        #expect(allPostsHTML.contains("<footer>"))
+        
+        // Check navigation
+        #expect(allPostsHTML.contains("<nav role=\"navigation\""))
+        #expect(allPostsHTML.contains("<a href=\"../\">Home</a>"))
+        
+        // Check post entries
+        #expect(allPostsHTML.contains("<h2><a href=\"first-post\">First Post</a></h2>"))
+        #expect(allPostsHTML.contains("<h2><a href=\"second-post\">Second Post</a></h2>"))
+        
+        // Check metadata
+        #expect(allPostsHTML.contains("class=\"meta\""))
+        #expect(allPostsHTML.contains("class=\"meta-label\""))
+        #expect(allPostsHTML.contains("<time datetime="))
+        
+        // Check updates
+        #expect(allPostsHTML.contains("Updated content"))
+        
+        // Check tags and categories
+        #expect(allPostsHTML.contains("href=\"../tags/tag1\""))
+        #expect(allPostsHTML.contains("href=\"../tags/tag2\""))
+        #expect(allPostsHTML.contains("href=\"../categories/cat1\""))
+        #expect(allPostsHTML.contains("href=\"../categories/cat2\""))
+    }
+    
+    func testAllPostsSorting() async throws {
+        let now = Date()
+        let posts = [
+            Post(
+                title: "Old Post",
+                date: now.addingTimeInterval(-172800), // 2 days ago
+                tags: [],
+                categories: [],
+                slug: "old-post",
+                content: ""
+            ),
+            Post(
+                title: "New Post",
+                date: now,
+                tags: [],
+                categories: [],
+                slug: "new-post",
+                content: ""
+            ),
+            Post(
+                title: "Middle Post",
+                date: now.addingTimeInterval(-86400), // Yesterday
+                tags: [],
+                categories: [],
+                slug: "middle-post",
+                content: ""
+            )
+        ]
+        
+        let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: posts)
+        try await generator.generate()
+        
+        let allPostsHTML = try String(contentsOf: testOutputPath.appending(path: "posts/index.html"))
+        
+        // Check that posts are ordered from newest to oldest
+        let newPostIndex = allPostsHTML.range(of: "New Post")?.lowerBound
+        let middlePostIndex = allPostsHTML.range(of: "Middle Post")?.lowerBound
+        let oldPostIndex = allPostsHTML.range(of: "Old Post")?.lowerBound
+        
+        guard let new = newPostIndex, let middle = middlePostIndex, let old = oldPostIndex else {
+            throw TestError("Could not find all posts in index.html")
+        }
+        
+        #expect(new < middle)
+        #expect(middle < old)
+    }
+    
+    func testAllPostsAccessibility() async throws {
+        let post = Post(
+            title: "Test Post",
+            date: Date(),
+            tags: ["test"],
+            categories: ["cat"],
+            slug: "test-post",
+            content: "Test content"
+        )
+        
+        let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
+        try await generator.generate()
+        
+        let allPostsHTML = try String(contentsOf: testOutputPath.appending(path: "posts/index.html"))
+        
+        // Check semantic HTML structure
+        #expect(allPostsHTML.contains("<main>"))
+        #expect(allPostsHTML.contains("<h1>"))
+        #expect(allPostsHTML.contains("<footer>"))
+        
+        // Check ARIA roles
+        #expect(allPostsHTML.contains("role=\"navigation\""))
+        #expect(allPostsHTML.contains("aria-label=\"Main navigation\""))
+        #expect(allPostsHTML.contains("role=\"list\""))
+        #expect(allPostsHTML.contains("role=\"listitem\""))
+        
+        // Check meta tags
+        #expect(allPostsHTML.contains("<meta charset=\"UTF-8\">"))
+        #expect(allPostsHTML.contains("<meta name=\"viewport\""))
+        
+        // Check dark mode support
+        #expect(allPostsHTML.contains("@media (prefers-color-scheme: dark)"))
+        
+        // Check responsive design
+        #expect(allPostsHTML.contains("@media (max-width: 480px)"))
     }
 } 

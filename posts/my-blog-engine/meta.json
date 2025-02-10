@@ -2,5 +2,15 @@
     "title": "Building a Static Blog Engine in Swift",
     "date": "2024-02-10T15:30:00Z",
     "tags": ["swift", "programming", "blog"],
-    "categories": ["development", "projects"]
+    "categories": ["development", "projects"],
+    "updates": [
+        {
+            "date": "2024-02-11T14:00:00Z",
+            "description": "Added section about concurrent page generation and performance improvements"
+        },
+        {
+            "date": "2024-02-12T08:45:00Z",
+            "description": "Added dark mode support and accessibility improvements"
+        }
+    ]
 } 

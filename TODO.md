@@ -1,6 +1,6 @@
 # Personal Blog Platform Feature Roadmap
 
-## MVP Iteration 1: Basic Static Site
+## MVP Iteration 1: Basic Static Site ✅
 
 - [x] **Static Site Generation**
   - [x] Set up a basic Swift package structure for a command line tool
@@ -19,6 +19,11 @@
       - [x] Display updates chronologically at bottom of posts
       - [x] Show update indicators in post lists
       - [x] Added tests for update functionality
+    - [x] Improved Markdown support
+      - [x] Added proper table support with responsive design
+      - [x] Enhanced styling for all Markdown elements
+      - [x] Added dark mode support for all elements
+      - [x] Improved accessibility with semantic HTML
 
 - [x] **Content Structure**
   - [x] Setup Swift tool to run pointed at a directory of posts
@@ -98,3 +103,7 @@
   - Category and tag pages with indexes
   - Recent posts on homepage with "View all" link
   - Proper metadata with dates in both human-readable and machine formats
+  - Full Markdown support with proper styling
+  - Dark mode support for all elements
+  - Responsive design for mobile devices
+  - Accessibility improvements with ARIA roles and semantic HTML

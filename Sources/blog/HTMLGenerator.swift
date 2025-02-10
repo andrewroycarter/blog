@@ -1,4 +1,5 @@
 import Foundation
+import Markdown
 
 public struct HTMLGenerationError: LocalizedError, Sendable {
     let message: String
@@ -64,175 +65,25 @@ public struct HTMLGenerator: Sendable {
     }
     
     private func generatePostHTML(_ post: Post) throws -> String {
-        let htmlContent = try sanitizeHTML(markdownToHTML(post.content))
-        let updatesHTML = generateUpdatesHTML(post.updates)
+        let htmlContent = try generatePostContentHTML(post: post)
         
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta name="description" content="Article about \(post.title)">
-            <title>\(post.title)</title>
-            <style>
-                :root {
-                    color-scheme: light dark;
-                }
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 1rem;
-                    font-size: 16px;
-                }
-                @media (min-width: 640px) {
-                    body {
-                        padding: 2rem;
-                        font-size: 18px;
-                    }
-                }
-                .meta {
-                    color: #666;
-                    margin-bottom: 2rem;
-                }
-                .meta-item {
-                    margin: 0.5rem 0;
-                }
-                .meta-label {
-                    display: inline-block;
-                    min-width: 5rem;
-                    color: #444;
-                }
-                .tags, .categories {
-                    display: inline;
-                }
-                .tag, .category {
-                    display: inline-block;
-                    padding: 0.2rem 0.5rem;
-                    margin: 0.2rem;
-                    background: #eee;
-                    border-radius: 3px;
-                    font-size: 0.9rem;
-                    transition: background-color 0.2s;
-                }
-                .tag:hover, .category:hover {
-                    background: #ddd;
-                }
-                .updates {
-                    margin-top: 3rem;
-                    padding-top: 1rem;
-                    border-top: 1px solid #eee;
-                }
-                .update-item {
-                    margin: 1rem 0;
-                }
-                .update-date {
-                    font-size: 0.9rem;
-                    color: #666;
-                }
-                pre {
-                    background: #f6f8fa;
-                    padding: 1rem;
-                    border-radius: 6px;
-                    overflow-x: auto;
-                    max-width: 100%;
-                }
-                code {
-                    font-family: ui-monospace, monospace;
-                    font-size: 0.9em;
-                }
-                img {
-                    max-width: 100%;
-                    height: auto;
-                }
-                a {
-                    color: #0366d6;
-                    text-decoration: none;
-                }
-                a:hover {
-                    text-decoration: underline;
-                }
-                nav {
-                    margin-bottom: 2rem;
-                }
-                nav a {
-                    margin-right: 1rem;
-                    padding: 0.5rem 0;
-                }
-                @media (prefers-color-scheme: dark) {
-                    body {
-                        background-color: #1a1a1a;
-                        color: #e6e6e6;
-                    }
-                    .meta {
-                        color: #999;
-                    }
-                    .meta-label {
-                        color: #bbb;
-                    }
-                    .tag, .category {
-                        background: #333;
-                    }
-                    .tag:hover, .category:hover {
-                        background: #444;
-                    }
-                    pre {
-                        background: #2d2d2d;
-                    }
-                    a {
-                        color: #58a6ff;
-                    }
-                    .updates {
-                        border-top-color: #333;
-                    }
-                    .update-date {
-                        color: #999;
-                    }
-                }
-                @media (max-width: 480px) {
-                    .meta-item {
-                        margin: 1rem 0;
-                    }
-                    .meta-label {
-                        display: block;
-                        margin-bottom: 0.25rem;
-                    }
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: post.title))
         <body>
-            <nav role="navigation" aria-label="Main navigation">
-                <a href="../../" aria-label="Return to homepage">Home</a>
-            </nav>
+            \(generateNavigationHTML(links: [
+                (href: "../../", text: "Home")
+            ]))
             <main>
                 <article>
                     <header>
                         <h1>\(post.title)</h1>
-                        <div class="meta">
-                            <div class="meta-item">
-                                <span class="meta-label">Published:</span>
-                                <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
-                            </div>
-                            <div class="meta-item">
-                                <span class="meta-label">Categories:</span>
-                                <div class="categories" role="list">
-                                    \(post.categories.map { "<a href=\"../../categories/\($0)\" class=\"category\" role=\"listitem\">\($0)</a>" }.joined())
-                                </div>
-                            </div>
-                            <div class="meta-item">
-                                <span class="meta-label">Tags:</span>
-                                <div class="tags" role="list">
-                                    \(post.tags.map { "<a href=\"../../tags/\($0)\" class=\"tag\" role=\"listitem\">\($0)</a>" }.joined())
-                                </div>
-                            </div>
-                        </div>
+                        \(generateMetaHTML(post: post, basePath: "../.."))
                     </header>
                     <div class="content">
                         \(htmlContent)
                     </div>
-                    \(updatesHTML)
                 </article>
             </main>
             <footer>
@@ -244,24 +95,7 @@ public struct HTMLGenerator: Sendable {
     }
     
     private func generateUpdatesHTML(_ updates: [Update]) -> String {
-        guard !updates.isEmpty else { return "" }
-        
-        let sortedUpdates = updates.sorted { $0.date > $1.date }
-        let updatesListHTML = sortedUpdates.map { update in
-            """
-            <div class="update-item">
-                <time class="update-date" datetime="\(update.date.ISO8601Format())">\(formatDate(update.date))</time>
-                <div class="update-description">\(update.description)</div>
-            </div>
-            """
-        }.joined()
-        
-        return """
-        <section class="updates">
-            <h2>Updates</h2>
-            \(updatesListHTML)
-        </section>
-        """
+        return "" // This function is no longer needed but kept for compatibility
     }
     
     private func generatePostPreviewHTML(_ post: Post, showFullContent: Bool = false) throws -> String {
@@ -298,87 +132,27 @@ public struct HTMLGenerator: Sendable {
     }
     
     private func generateHomePageHTML(_ recentPosts: [Post]) throws -> String {
-        let postsHTML = try recentPosts.map { post in """
+        let postsHTML = try recentPosts.map { post in
+            """
             <article class="post">
                 <h2><a href="posts/\(post.slug)">\(post.title)</a></h2>
-                <div class="meta">
-                    <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
-                    <div class="categories">
-                        \(post.categories.map { "<a href=\"categories/\($0)\" class=\"category\">\($0)</a>" }.joined())
-                    </div>
-                    <div class="tags">
-                        \(post.tags.map { "<a href=\"tags/\($0)\" class=\"tag\">\($0)</a>" }.joined())
-                    </div>
-                </div>
+                \(generateMetaHTML(post: post, basePath: ""))
                 <div class="content">
-                    \(try sanitizeHTML(markdownToHTML(post.content)))
+                    \(try generatePostContentHTML(post: post))
                 </div>
             </article>
-        """
+            """
         }.joined(separator: "\n")
         
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Blog</title>
-            <style>
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-                .post {
-                    margin-bottom: 4rem;
-                    padding-bottom: 4rem;
-                    border-bottom: 1px solid #eee;
-                }
-                .post:last-child {
-                    border-bottom: none;
-                }
-                .meta {
-                    color: #666;
-                    margin-bottom: 2rem;
-                }
-                .tags, .categories {
-                    display: inline-block;
-                    margin-right: 1rem;
-                }
-                .tag, .category {
-                    display: inline-block;
-                    padding: 0.2rem 0.5rem;
-                    margin: 0.2rem;
-                    background: #eee;
-                    border-radius: 3px;
-                    font-size: 0.9rem;
-                }
-                nav {
-                    margin-bottom: 2rem;
-                }
-                nav a {
-                    margin-right: 1rem;
-                }
-                pre {
-                    background: #f6f8fa;
-                    padding: 1rem;
-                    border-radius: 6px;
-                    overflow-x: auto;
-                }
-                code {
-                    font-family: ui-monospace, monospace;
-                    font-size: 0.9em;
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: "Blog"))
         <body>
-            <nav role="navigation" aria-label="Main navigation">
-                <a href="categories">Categories</a>
-                <a href="tags">Tags</a>
-            </nav>
+            \(generateNavigationHTML(links: [
+                (href: "categories", text: "Categories"),
+                (href: "tags", text: "Tags")
+            ]))
             <h1>Recent Posts</h1>
             \(postsHTML)
             <p><a href="posts">View all posts</a></p>
@@ -437,29 +211,21 @@ public struct HTMLGenerator: Sendable {
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Category: \(category)</title>
-            <style>
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: "Category: \(category)"))
         <body>
-            <nav role="navigation" aria-label="Main navigation">
-                <a href="../../">Home</a>
-                <a href="../">Categories</a>
-            </nav>
+            \(generateNavigationHTML(links: [
+                (href: "../../", text: "Home"),
+                (href: "../", text: "Categories")
+            ]))
             <h1>Posts in \(category)</h1>
-            <ul>
+            <ul class="post-list">
             \(posts.sorted { $0.date > $1.date }.map { post in
-                "<li><a href=\"../../posts/\(post.slug)\">\(post.title)</a> - \(formatDate(post.date))</li>"
+                """
+                <li class="post-item">
+                    <h2><a href="../../posts/\(post.slug)">\(post.title)</a></h2>
+                    \(generateMetaHTML(post: post, basePath: "../.."))
+                </li>
+                """
             }.joined(separator: "\n"))
             </ul>
         </body>
@@ -471,29 +237,21 @@ public struct HTMLGenerator: Sendable {
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Tag: \(tag)</title>
-            <style>
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: "Tag: \(tag)"))
         <body>
-            <nav role="navigation" aria-label="Main navigation">
-                <a href="../../">Home</a>
-                <a href="../">Tags</a>
-            </nav>
+            \(generateNavigationHTML(links: [
+                (href: "../../", text: "Home"),
+                (href: "../", text: "Tags")
+            ]))
             <h1>Posts tagged with \(tag)</h1>
-            <ul>
+            <ul class="post-list">
             \(posts.sorted { $0.date > $1.date }.map { post in
-                "<li><a href=\"../../posts/\(post.slug)\">\(post.title)</a> - \(formatDate(post.date))</li>"
+                """
+                <li class="post-item">
+                    <h2><a href="../../posts/\(post.slug)">\(post.title)</a></h2>
+                    \(generateMetaHTML(post: post, basePath: "../.."))
+                </li>
+                """
             }.joined(separator: "\n"))
             </ul>
         </body>
@@ -505,28 +263,19 @@ public struct HTMLGenerator: Sendable {
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Categories</title>
-            <style>
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: "Categories"))
         <body>
-            <nav role="navigation" aria-label="Main navigation">
-                <a href="../">Home</a>
-            </nav>
+            \(generateNavigationHTML(links: [
+                (href: "../", text: "Home")
+            ]))
             <h1>Categories</h1>
-            <ul>
+            <ul class="category-list">
             \(categories.sorted().map { category in
-                "<li><a href=\"\(category)\">\(category)</a></li>"
+                """
+                <li class="category-item">
+                    <a href="\(category)" class="category">\(category)</a>
+                </li>
+                """
             }.joined(separator: "\n"))
             </ul>
         </body>
@@ -538,28 +287,19 @@ public struct HTMLGenerator: Sendable {
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Tags</title>
-            <style>
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: "Tags"))
         <body>
-            <nav role="navigation" aria-label="Main navigation">
-                <a href="../">Home</a>
-            </nav>
+            \(generateNavigationHTML(links: [
+                (href: "../", text: "Home")
+            ]))
             <h1>Tags</h1>
-            <ul>
+            <ul class="tag-list">
             \(tags.sorted().map { tag in
-                "<li><a href=\"\(tag)\">\(tag)</a></li>"
+                """
+                <li class="tag-item">
+                    <a href="\(tag)" class="tag">\(tag)</a>
+                </li>
+                """
             }.joined(separator: "\n"))
             </ul>
         </body>
@@ -575,96 +315,12 @@ public struct HTMLGenerator: Sendable {
     }
     
     private func markdownToHTML(_ markdown: String) throws -> String {
-        // For now, let's do some basic Markdown parsing
-        // We'll replace this with a proper Markdown parser later
-        var html = markdown
-        
-        // Process the text line by line for headers and lists
-        var lines = html.components(separatedBy: .newlines)
-        var processedLines: [String] = []
-        var inCodeBlock = false
-        
-        for line in lines {
-            if line.hasPrefix("```") {
-                if inCodeBlock {
-                    processedLines.append("</code></pre>")
-                    inCodeBlock = false
-                } else {
-                    let language = line.dropFirst(3).trimmingCharacters(in: .whitespaces)
-                    processedLines.append("<pre><code class=\"language-\(language)\">")
-                    inCodeBlock = true
-                }
-                continue
-            }
-            
-            if inCodeBlock {
-                processedLines.append(line)
-                continue
-            }
-            
-            // Headers
-            if line.hasPrefix("# ") {
-                processedLines.append("<h1>\(line.dropFirst(2))</h1>")
-            } else if line.hasPrefix("## ") {
-                processedLines.append("<h2>\(line.dropFirst(3))</h2>")
-            } else if line.hasPrefix("### ") {
-                processedLines.append("<h3>\(line.dropFirst(4))</h3>")
-            }
-            // Lists
-            else if line.hasPrefix("- ") {
-                processedLines.append("<li>\(line.dropFirst(2))</li>")
-            } else if let match = line.firstMatch(of: /^[0-9]+\. (.+)$/) {
-                processedLines.append("<li>\(match.1)</li>")
-            } else {
-                processedLines.append(line)
-            }
-        }
-        
-        html = processedLines.joined(separator: "\n")
-        
-        // Wrap lists
-        lines = html.components(separatedBy: .newlines)
-        var inList = false
-        var listType = ""
-        var result: [String] = []
-        
-        for line in lines {
-            if line.starts(with: "<li>") {
-                if !inList {
-                    inList = true
-                    listType = line.contains("<li>1") ? "ol" : "ul"
-                    result.append("<\(listType)>")
-                }
-                result.append(line)
-            } else {
-                if inList {
-                    inList = false
-                    result.append("</\(listType)>")
-                }
-                result.append(line)
-            }
-        }
-        
-        if inList {
-            result.append("</\(listType)>")
-        }
-        
-        html = result.joined(separator: "\n")
-        
-        // Paragraphs
-        html = html.components(separatedBy: "\n\n").map { para in
-            let trimmed = para.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty && !trimmed.hasPrefix("<") {
-                return "<p>\(para)</p>"
-            }
-            return para
-        }.joined(separator: "\n\n")
-        
-        // Inline formatting
-        html = html.replacingOccurrences(of: "`([^`]+)`", with: "<code>$1</code>", options: .regularExpression)
-        html = html.replacingOccurrences(of: #"\*\*([^\*]+)\*\*"#, with: "<strong>$1</strong>", options: .regularExpression)
-        
-        return html
+        let document = Document(parsing: markdown)
+        var html = ""
+        var htmlVisitor = HTMLVisitor()
+        htmlVisitor.visit(document)
+        html = htmlVisitor.result
+        return sanitizeHTML(html)
     }
     
     private func generatePostsIndex() async throws {
@@ -676,72 +332,27 @@ public struct HTMLGenerator: Sendable {
         return """
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>All Posts</title>
-            <style>
-                body {
-                    font-family: system-ui, -apple-system, sans-serif;
-                    line-height: 1.6;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-                .post-list {
-                    list-style: none;
-                    padding: 0;
-                }
-                .post-item {
-                    margin-bottom: 1.5rem;
-                }
-                .post-meta {
-                    color: #666;
-                    font-size: 0.9rem;
-                    margin-top: 0.5rem;
-                }
-                .tags, .categories {
-                    display: inline-block;
-                    margin-right: 1rem;
-                }
-                .tag, .category {
-                    display: inline-block;
-                    padding: 0.2rem 0.5rem;
-                    margin: 0.2rem;
-                    background: #eee;
-                    border-radius: 3px;
-                    font-size: 0.9rem;
-                }
-                nav {
-                    margin-bottom: 2rem;
-                }
-                nav a {
-                    margin-right: 1rem;
-                }
-            </style>
-        </head>
+        \(generateCommonHeadHTML(title: "All Posts"))
         <body>
-            <nav>
-                <a href="../">Home</a>
-            </nav>
-            <h1>All Posts</h1>
-            <ul class="post-list">
-            \(posts.map { post in """
-                <li class="post-item">
-                    <h2><a href="\(post.slug)">\(post.title)</a></h2>
-                    <div class="post-meta">
-                        <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
-                        <div class="categories">
-                            \(post.categories.map { "<a href=\"../categories/\($0)\" class=\"category\">\($0)</a>" }.joined())
-                        </div>
-                        <div class="tags">
-                            \(post.tags.map { "<a href=\"../tags/\($0)\" class=\"tag\">\($0)</a>" }.joined())
-                        </div>
-                    </div>
-                </li>
-            """
-            }.joined(separator: "\n"))
-            </ul>
+            \(generateNavigationHTML(links: [
+                (href: "../", text: "Home")
+            ]))
+            <main>
+                <h1>All Posts</h1>
+                <ul class="post-list">
+                \(posts.map { post in
+                    """
+                    <li class="post-item">
+                        <h2><a href="\(post.slug)">\(post.title)</a></h2>
+                        \(generateMetaHTML(post: post, basePath: ".."))
+                    </li>
+                    """
+                }.joined(separator: "\n"))
+                </ul>
+            </main>
+            <footer>
+                <p><small>Generated with Swift Blog Engine</small></p>
+            </footer>
         </body>
         </html>
         """
@@ -752,5 +363,491 @@ public struct HTMLGenerator: Sendable {
         let scriptPattern = "<script[^>]*>.*?</script>"
         let sanitized = html.replacingOccurrences(of: scriptPattern, with: "", options: [.regularExpression, .caseInsensitive])
         return sanitized
+    }
+    
+    // Helper functions for common HTML components
+    private func generateNavigationHTML(links: [(href: String, text: String)]) -> String {
+        return """
+        <nav role="navigation" aria-label="Main navigation">
+            \(links.map { "<a href=\"\($0.href)\">\($0.text)</a>" }.joined(separator: "\n            "))
+        </nav>
+        """
+    }
+    
+    private func generateTagsHTML(tags: [String], basePath: String, inline: Bool = false) -> String {
+        return """
+        <div class="tags" role="list" style="display: \(inline ? "inline" : "inline-block")">
+            \(tags.map { "<a href=\"\(basePath)/tags/\($0)\" class=\"tag\" role=\"listitem\">\($0)</a>" }.joined())
+        </div>
+        """
+    }
+    
+    private func generateCategoriesHTML(categories: [String], basePath: String, inline: Bool = false) -> String {
+        return """
+        <div class="categories" role="list" style="display: \(inline ? "inline" : "inline-block")">
+            \(categories.map { "<a href=\"\(basePath)/categories/\($0)\" class=\"category\" role=\"listitem\">\($0)</a>" }.joined())
+        </div>
+        """
+    }
+    
+    private func generateUpdatesHTML(updates: [Update]) -> String {
+        let sortedUpdates = updates.sorted { $0.date > $1.date }
+        return """
+        <div class="update-list">
+            \(sortedUpdates.map { update in
+                """
+                <div class="update-item">Updated \(formatDate(update.date)): \(update.description)</div>
+                """
+            }.joined(separator: "\n"))
+        </div>
+        """
+    }
+    
+    private func generateMetaHTML(post: Post, basePath: String) -> String {
+        let hasUpdates = !post.updates.isEmpty
+        return """
+        <div class="meta">
+            <div class="meta-item">
+                <span class="meta-label">Published:</span>
+                <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
+                \(hasUpdates ? generateUpdatesHTML(updates: post.updates) : "")
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Categories:</span>
+                \(generateCategoriesHTML(categories: post.categories, basePath: basePath, inline: true))
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Tags:</span>
+                \(generateTagsHTML(tags: post.tags, basePath: basePath, inline: true))
+            </div>
+        </div>
+        """
+    }
+    
+    private func generatePostContentHTML(post: Post) throws -> String {
+        return try sanitizeHTML(markdownToHTML(post.content))
+    }
+    
+    private func generateCommonCSS() -> String {
+        return """
+            :root {
+                color-scheme: light dark;
+            }
+            body {
+                font-family: system-ui, -apple-system, sans-serif;
+                line-height: 1.6;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+            .meta {
+                color: #666;
+                margin-bottom: 2rem;
+            }
+            .meta-item {
+                margin: 0.5rem 0;
+            }
+            .meta-label {
+                display: inline-block;
+                min-width: 5rem;
+                color: #444;
+            }
+            .update-list {
+                margin: 0.5rem 0;
+                font-size: 0.9rem;
+                color: #666;
+            }
+            .update-item {
+                margin: 0.25rem 0;
+            }
+            .post-list {
+                list-style: none;
+                padding: 0;
+            }
+            .post-item {
+                margin-bottom: 2rem;
+                padding-bottom: 2rem;
+                border-bottom: 1px solid #eee;
+            }
+            .post-item:last-child {
+                border-bottom: none;
+            }
+            .tags, .categories {
+                margin-right: 1rem;
+            }
+            .tag, .category {
+                display: inline-block;
+                padding: 0.2rem 0.5rem;
+                margin: 0.2rem;
+                background: #eee;
+                border-radius: 3px;
+                font-size: 0.9rem;
+                transition: background-color 0.2s;
+            }
+            .tag:hover, .category:hover {
+                background: #ddd;
+            }
+            .tag-list, .category-list {
+                list-style: none;
+                padding: 0;
+            }
+            .tag-item, .category-item {
+                margin: 0.5rem 0;
+            }
+            nav {
+                margin-bottom: 2rem;
+            }
+            nav a {
+                margin-right: 1rem;
+                padding: 0.5rem 0;
+            }
+            a {
+                color: #0366d6;
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            a:visited {
+                color: #6f42c1;
+            }
+            pre {
+                background: #f6f8fa;
+                padding: 1rem;
+                border-radius: 6px;
+                overflow-x: auto;
+                margin: 1.5rem 0;
+            }
+            code {
+                font-family: ui-monospace, monospace;
+                font-size: 0.9em;
+                padding: 0.2em 0.4em;
+                background: rgba(175, 184, 193, 0.2);
+                border-radius: 3px;
+            }
+            pre code {
+                padding: 0;
+                background: none;
+            }
+            .content {
+                margin-top: 2rem;
+            }
+            .content h1 {
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                padding-bottom: 0.3rem;
+                border-bottom: 1px solid #eee;
+            }
+            .content h2 {
+                margin-top: 1.5rem;
+                margin-bottom: 1rem;
+            }
+            .content h3, .content h4, .content h5, .content h6 {
+                margin-top: 1.5rem;
+                margin-bottom: 0.5rem;
+            }
+            .content ul, .content ol {
+                padding-left: 2rem;
+                margin: 1rem 0;
+            }
+            .content li {
+                margin: 0.5rem 0;
+            }
+            .content ul ul, .content ol ol, .content ul ol, .content ol ul {
+                margin: 0.5rem 0;
+            }
+            .content p {
+                margin: 1rem 0;
+            }
+            .content blockquote {
+                margin: 1rem 0;
+                padding: 0.5rem 1rem;
+                border-left: 0.25rem solid #ddd;
+                color: #666;
+                background: rgba(175, 184, 193, 0.1);
+            }
+            .content blockquote > :first-child {
+                margin-top: 0;
+            }
+            .content blockquote > :last-child {
+                margin-bottom: 0;
+            }
+            .update-badge {
+                display: inline-block;
+                padding: 0.2rem 0.5rem;
+                margin: 0 0.5rem;
+                background: #f0ad4e;
+                color: #fff;
+                border-radius: 3px;
+                font-size: 0.8rem;
+            }
+            .content hr {
+                height: 0.25rem;
+                padding: 0;
+                margin: 1.5rem 0;
+                background-color: #e1e4e8;
+                border: 0;
+            }
+            .content table {
+                border-spacing: 0;
+                border-collapse: collapse;
+                margin: 1.5rem 0;
+                width: 100%;
+                font-size: 0.9rem;
+            }
+            .content table th {
+                font-weight: 600;
+                background-color: #f6f8fa;
+                text-align: left;
+                padding: 0.75rem 1rem;
+                border: 1px solid #e1e4e8;
+            }
+            .content table td {
+                padding: 0.75rem 1rem;
+                border: 1px solid #e1e4e8;
+                vertical-align: top;
+            }
+            .content table tr:nth-child(even) {
+                background-color: #f8f9fa;
+            }
+            .content table tr:hover {
+                background-color: #f1f2f3;
+            }
+            .content img {
+                max-width: 100%;
+                height: auto;
+                margin: 1rem 0;
+            }
+            .content input[type="checkbox"] {
+                margin-right: 0.5rem;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #1a1a1a;
+                    color: #e6e6e6;
+                }
+                .meta {
+                    color: #999;
+                }
+                .meta-label {
+                    color: #bbb;
+                }
+                .tag, .category {
+                    background: #333;
+                }
+                .tag:hover, .category:hover {
+                    background: #444;
+                }
+                .update-list {
+                    color: #999;
+                }
+                .update-item {
+                    color: #999;
+                }
+                .post-item {
+                    border-bottom-color: #333;
+                }
+                pre {
+                    background: #2d2d2d;
+                }
+                code {
+                    background: rgba(110, 118, 129, 0.4);
+                }
+                pre code {
+                    background: none;
+                }
+                .content h1 {
+                    border-bottom-color: #333;
+                }
+                .content blockquote {
+                    border-left-color: #444;
+                    color: #999;
+                    background: rgba(110, 118, 129, 0.1);
+                }
+                a {
+                    color: #58a6ff;
+                }
+                a:visited {
+                    color: #bc8cff;
+                }
+                .update-badge {
+                    background: #b86e00;
+                }
+                .content hr {
+                    background-color: #333;
+                }
+                .content table th {
+                    background-color: #2d2d2d;
+                    border-color: #404040;
+                }
+                .content table td {
+                    border-color: #404040;
+                }
+                .content table tr:nth-child(even) {
+                    background-color: #252525;
+                }
+                .content table tr:hover {
+                    background-color: #303030;
+                }
+            }
+            @media (max-width: 480px) {
+                .meta-item {
+                    margin: 1rem 0;
+                }
+                .meta-label {
+                    display: block;
+                    margin-bottom: 0.25rem;
+                }
+                .content table {
+                    display: block;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+            }
+        """
+    }
+    
+    private func generateCommonHeadHTML(title: String) -> String {
+        return """
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>\(title)</title>
+            <style>
+                \(generateCommonCSS())
+            </style>
+        </head>
+        """
+    }
+}
+
+struct HTMLVisitor: MarkupWalker {
+    private(set) var result = ""
+    
+    mutating func visitDocument(_ document: Document) {
+        document.children.forEach { child in
+            visit(child)
+        }
+    }
+    
+    mutating func visitHeading(_ heading: Heading) {
+        result += "<h\(heading.level)>"
+        heading.children.forEach { child in
+            visit(child)
+        }
+        result += "</h\(heading.level)>"
+    }
+    
+    mutating func visitParagraph(_ paragraph: Paragraph) {
+        result += "<p>"
+        paragraph.children.forEach { child in
+            visit(child)
+        }
+        result += "</p>"
+    }
+    
+    mutating func visitText(_ text: Text) {
+        result += text.string
+    }
+    
+    mutating func visitEmphasis(_ emphasis: Emphasis) {
+        result += "<em>"
+        emphasis.children.forEach { child in
+            visit(child)
+        }
+        result += "</em>"
+    }
+    
+    mutating func visitStrong(_ strong: Strong) {
+        result += "<strong>"
+        strong.children.forEach { child in
+            visit(child)
+        }
+        result += "</strong>"
+    }
+    
+    mutating func visitLink(_ link: Link) {
+        result += "<a href=\"\(link.destination ?? "")\">"
+        link.children.forEach { child in
+            visit(child)
+        }
+        result += "</a>"
+    }
+    
+    mutating func visitInlineCode(_ inlineCode: InlineCode) {
+        result += "<code>\(inlineCode.code)</code>"
+    }
+    
+    mutating func visitCodeBlock(_ codeBlock: CodeBlock) {
+        let language = codeBlock.language ?? ""
+        result += "<pre><code class=\"language-\(language)\">"
+        result += codeBlock.code
+        result += "</code></pre>"
+    }
+    
+    mutating func visitListItem(_ listItem: ListItem) {
+        result += "<li>"
+        listItem.children.forEach { child in
+            visit(child)
+        }
+        result += "</li>"
+    }
+    
+    mutating func visitUnorderedList(_ unorderedList: UnorderedList) {
+        result += "<ul>"
+        unorderedList.children.forEach { child in
+            visit(child)
+        }
+        result += "</ul>"
+    }
+    
+    mutating func visitOrderedList(_ orderedList: OrderedList) {
+        result += "<ol>"
+        orderedList.children.forEach { child in
+            visit(child)
+        }
+        result += "</ol>"
+    }
+    
+    mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
+        result += "<blockquote>"
+        blockQuote.children.forEach { child in
+            visit(child)
+        }
+        result += "</blockquote>"
+    }
+    
+    mutating func visitTable(_ table: Table) {
+        result += "<table><thead><tr>"
+        // Visit header cells
+        for cell in table.head.cells {
+            result += "<th>"
+            cell.children.forEach { visit($0) }
+            result += "</th>"
+        }
+        result += "</tr></thead><tbody>"
+        
+        // Visit body rows
+        for row in table.body.rows {
+            result += "<tr>"
+            for cell in row.cells {
+                result += "<td>"
+                cell.children.forEach { visit($0) }
+                result += "</td>"
+            }
+            result += "</tr>"
+        }
+        result += "</tbody></table>"
+    }
+    
+    mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) {
+        result += "<hr>"
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        guard index >= 0, index < endIndex else { return nil }
+        return self[index]
     }
 } 
