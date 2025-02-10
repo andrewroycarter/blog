@@ -1,0 +1,39 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: "6.0"
+
+    - name: Build
+      run: swift build
+      
+    - name: Run tests
+      run: swift test
+      
+    - name: Generate site
+      run: swift run blog build
+      
+    - name: Create artifact
+      run: |
+        cd public
+        zip -r ../site.zip .
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: site-preview
+        path: site.zip
+        retention-days: 7 
