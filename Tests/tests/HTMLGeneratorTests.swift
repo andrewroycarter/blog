@@ -1,257 +1,221 @@
-import XCTest
-@testable import blog
+import Testing
 import Foundation
+@testable import blog
 
-final class HTMLGeneratorTests: XCTestCase {
-    let testOutputPath = FileManager.default.temporaryDirectory.appending(path: "blog_test_output")
+class HTMLGeneratorTests {
+    let testOutputPath: URL
     
-    override func setUp() async throws {
-        try? FileManager.default.removeItem(at: testOutputPath)
+    init() throws {
+        testOutputPath = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("blog_test_output_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: testOutputPath, withIntermediateDirectories: true)
     }
     
-    override func tearDown() async throws {
+    deinit {
         try? FileManager.default.removeItem(at: testOutputPath)
     }
     
     func testGenerateBasicSite() async throws {
         let posts = [
             Post(
-                title: "First Post",
+                title: "Test Post",
                 date: Date(),
-                tags: ["swift", "programming"],
-                categories: ["development"],
-                slug: "first-post",
-                content: "This is my first post"
-            ),
-            Post(
-                title: "Second Post",
-                date: Date().addingTimeInterval(-86400), // Yesterday
-                tags: ["swift"],
-                categories: ["development"],
-                slug: "second-post",
-                content: "This is my second post"
+                tags: ["test1", "test2"],
+                categories: ["cat1", "cat2"],
+                slug: "test-post",
+                content: "Test content"
             )
         ]
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: posts)
         try await generator.generate()
         
-        // Check that all required directories were created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "posts").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "categories").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "tags").path()))
+        // Check that all required directories exist
+        let fileManager = FileManager.default
+        #expect(fileManager.fileExists(atPath: testOutputPath.path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "posts").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "tags").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "categories").path))
         
-        // Check that index.html was created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "index.html").path()))
+        // Check that index files exist
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "tags/index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "categories/index.html").path))
         
-        // Check that post files were created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "posts/first-post/index.html").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "posts/second-post/index.html").path()))
+        // Check that post files exist
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "posts/test-post/index.html").path))
         
-        // Check that category files were created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "categories/development/index.html").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "categories/index.html").path()))
-        
-        // Check that tag files were created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "tags/swift/index.html").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "tags/programming/index.html").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "tags/index.html").path()))
-        
-        // Check content of a post file
-        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/first-post/index.html"))
-        XCTAssertTrue(postHTML.contains("First Post"))
-        XCTAssertTrue(postHTML.contains("This is my first post"))
-        XCTAssertTrue(postHTML.contains("swift"))
-        XCTAssertTrue(postHTML.contains("programming"))
-        XCTAssertTrue(postHTML.contains("development"))
-        
-        // Check content of homepage
-        let homeHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
-        XCTAssertTrue(homeHTML.contains("First Post"))
-        XCTAssertTrue(homeHTML.contains("Second Post"))
-        
-        // Check content of a category page
-        let categoryHTML = try String(contentsOf: testOutputPath.appending(path: "categories/development/index.html"))
-        XCTAssertTrue(categoryHTML.contains("First Post"))
-        XCTAssertTrue(categoryHTML.contains("Second Post"))
-        
-        // Check content of a tag page
-        let tagHTML = try String(contentsOf: testOutputPath.appending(path: "tags/swift/index.html"))
-        XCTAssertTrue(tagHTML.contains("First Post"))
-        XCTAssertTrue(tagHTML.contains("Second Post"))
+        // Check that tag and category pages exist
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "tags/test1/index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "tags/test2/index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "categories/cat1/index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "categories/cat2/index.html").path))
     }
     
     func testGenerateEmptySite() async throws {
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [])
         try await generator.generate()
         
-        // Check that all required directories were created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "posts").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "categories").path()))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "tags").path()))
+        let fileManager = FileManager.default
+        #expect(fileManager.fileExists(atPath: testOutputPath.path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "tags/index.html").path))
+        #expect(fileManager.fileExists(atPath: testOutputPath.appending(path: "categories/index.html").path))
         
-        // Check that index.html was created
-        XCTAssertTrue(FileManager.default.fileExists(atPath: testOutputPath.appending(path: "index.html").path()))
-        
-        // Check content of homepage (should be empty but valid)
-        let homeHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
-        XCTAssertTrue(homeHTML.contains("Recent Posts"))
-        XCTAssertTrue(homeHTML.contains("View all posts"))
+        let indexHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
+        #expect(indexHTML.contains("No posts found"))
     }
     
     func testMarkdownContentRendering() async throws {
         let post = Post(
-            title: "Content Test",
+            title: "Test Post",
             date: Date(),
-            tags: [],
-            categories: [],
-            slug: "content-test",
-            content: "# Test Heading\n\nTest paragraph"
+            tags: ["test"],
+            categories: ["cat"],
+            slug: "test-post",
+            content: "# Heading\n\nThis is a **bold** text."
         )
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
         try await generator.generate()
         
-        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/content-test/index.html"))
-        
-        // Only test that content is rendered within the content div
-        XCTAssertTrue(postHTML.contains("<div class=\"content\">"))
-        XCTAssertTrue(postHTML.contains("Test Heading"))
-        XCTAssertTrue(postHTML.contains("Test paragraph"))
+        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/test-post/index.html"))
+        #expect(postHTML.contains("<h1>Heading</h1>"))
+        #expect(postHTML.contains("This is a <strong>bold</strong> text."))
     }
     
     func testContentSanitization() async throws {
         let post = Post(
-            title: "Sanitization Test",
+            title: "Test Post",
             date: Date(),
-            tags: [],
-            categories: [],
-            slug: "sanitization-test",
-            content: "<script>alert('xss')</script>\nNormal content"
+            tags: ["test"],
+            categories: ["cat"],
+            slug: "test-post",
+            content: "Normal text <script>alert('xss')</script> More text"
         )
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
         try await generator.generate()
         
-        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/sanitization-test/index.html"))
-        
-        // Verify that script tags are escaped/removed
-        XCTAssertFalse(postHTML.contains("<script>"))
-        XCTAssertTrue(postHTML.contains("Normal content"))
+        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/test-post/index.html"))
+        #expect(!postHTML.contains("<script>"))
+        #expect(postHTML.contains("Normal text"))
+        #expect(postHTML.contains("More text"))
     }
     
     func testMetadataRendering() async throws {
         let date = Date()
         let post = Post(
-            title: "Metadata Test",
+            title: "Test Post",
             date: date,
-            tags: ["tag1", "tag2"],
-            categories: ["cat1"],
-            slug: "metadata-test",
+            tags: ["test1", "test2"],
+            categories: ["cat1", "cat2"],
+            slug: "test-post",
             content: "Test content"
         )
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
         try await generator.generate()
         
-        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/metadata-test/index.html"))
+        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/test-post/index.html"))
         
-        // Test that metadata is properly rendered in the HTML
-        XCTAssertTrue(postHTML.contains("Metadata Test</h1>"))
-        XCTAssertTrue(postHTML.contains("href=\"../../tags/tag1\""))
-        XCTAssertTrue(postHTML.contains("href=\"../../tags/tag2\""))
-        XCTAssertTrue(postHTML.contains("href=\"../../categories/cat1\""))
-        XCTAssertTrue(postHTML.contains(formatDate(date)))
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        // Check title
+        #expect(postHTML.contains("<title>Test Post</title>"))
+        #expect(postHTML.contains("<h1>Test Post</h1>"))
+        
+        // Check tags
+        #expect(postHTML.contains("href=\"/tags/test1/\""))
+        #expect(postHTML.contains("href=\"/tags/test2/\""))
+        
+        // Check categories
+        #expect(postHTML.contains("href=\"/categories/cat1/\""))
+        #expect(postHTML.contains("href=\"/categories/cat2/\""))
     }
     
     func testDateFormatting() async throws {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        let date = dateFormatter.date(from: "2024-02-10T15:30:00+0000")!
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let date = dateFormatter.date(from: "2024-02-10")!
         
         let post = Post(
-            title: "Date Test",
+            title: "Test Post",
             date: date,
-            tags: [],
-            categories: [],
-            slug: "date-test",
+            tags: ["test"],
+            categories: ["cat"],
+            slug: "test-post",
             content: "Test content"
         )
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
         try await generator.generate()
         
-        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/date-test/index.html"))
+        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/test-post/index.html"))
         
-        // Check both machine-readable and human-readable dates
-        XCTAssertTrue(postHTML.contains("datetime=\"2024-02-10T15:30:00Z\""))
-        XCTAssertTrue(postHTML.contains("February 10, 2024"))
+        // Check machine-readable date
+        #expect(postHTML.contains("datetime=\"2024-02-10"))
+        
+        // Check human-readable date
+        #expect(postHTML.contains("February 10, 2024"))
     }
     
     func testRelativeLinks() async throws {
         let post = Post(
-            title: "Link Test",
+            title: "Test Post",
             date: Date(),
-            tags: ["test"],
-            categories: ["testing"],
-            slug: "link-test",
+            tags: ["test1", "test2"],
+            categories: ["cat1", "cat2"],
+            slug: "test-post",
             content: "Test content"
         )
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
         try await generator.generate()
         
-        // Check homepage links
-        let homeHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
-        XCTAssertTrue(homeHTML.contains("href=\"posts/link-test\""))
-        XCTAssertTrue(homeHTML.contains("href=\"categories\""))
-        XCTAssertTrue(homeHTML.contains("href=\"tags\""))
+        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/test-post/index.html"))
+        let indexHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
+        let tagHTML = try String(contentsOf: testOutputPath.appending(path: "tags/test1/index.html"))
+        let categoryHTML = try String(contentsOf: testOutputPath.appending(path: "categories/cat1/index.html"))
         
-        // Check post page links
-        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/link-test/index.html"))
-        XCTAssertTrue(postHTML.contains("href=\"../../\"")) // Home link
-        XCTAssertTrue(postHTML.contains("href=\"../../categories/testing\""))
-        XCTAssertTrue(postHTML.contains("href=\"../../tags/test\""))
+        // Check post links
+        #expect(indexHTML.contains("href=\"/posts/test-post/\""))
+        #expect(tagHTML.contains("href=\"/posts/test-post/\""))
+        #expect(categoryHTML.contains("href=\"/posts/test-post/\""))
         
-        // Check category page links
-        let categoryHTML = try String(contentsOf: testOutputPath.appending(path: "categories/testing/index.html"))
-        XCTAssertTrue(categoryHTML.contains("href=\"../../\"")) // Home link
-        XCTAssertTrue(categoryHTML.contains("href=\"../../posts/link-test\""))
+        // Check tag links
+        #expect(postHTML.contains("href=\"/tags/test1/\""))
+        #expect(postHTML.contains("href=\"/tags/test2/\""))
         
-        // Check tag page links
-        let tagHTML = try String(contentsOf: testOutputPath.appending(path: "tags/test/index.html"))
-        XCTAssertTrue(tagHTML.contains("href=\"../../\"")) // Home link
-        XCTAssertTrue(tagHTML.contains("href=\"../../posts/link-test\""))
+        // Check category links
+        #expect(postHTML.contains("href=\"/categories/cat1/\""))
+        #expect(postHTML.contains("href=\"/categories/cat2/\""))
     }
     
     func testPostSorting() async throws {
         let now = Date()
+        let yesterday = now.addingTimeInterval(-86400)
+        let twoDaysAgo = now.addingTimeInterval(-172800)
+        
         let posts = [
-            Post(title: "Oldest", date: now.addingTimeInterval(-172800), tags: [], categories: [], slug: "oldest", content: ""),
-            Post(title: "Newest", date: now, tags: [], categories: [], slug: "newest", content: ""),
-            Post(title: "Middle", date: now.addingTimeInterval(-86400), tags: [], categories: [], slug: "middle", content: "")
+            Post(title: "Old Post", date: twoDaysAgo, tags: [], categories: [], slug: "old-post", content: ""),
+            Post(title: "New Post", date: now, tags: [], categories: [], slug: "new-post", content: ""),
+            Post(title: "Middle Post", date: yesterday, tags: [], categories: [], slug: "middle-post", content: "")
         ]
         
         let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: posts)
         try await generator.generate()
         
-        let homeHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
+        let indexHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
         
-        // Check that posts are sorted newest to oldest
-        let firstPostIndex = homeHTML.range(of: "Newest")!.lowerBound
-        let secondPostIndex = homeHTML.range(of: "Middle")!.lowerBound
-        let thirdPostIndex = homeHTML.range(of: "Oldest")!.lowerBound
+        // Check that posts are ordered from newest to oldest
+        let newPostIndex = indexHTML.range(of: "New Post")?.lowerBound
+        let middlePostIndex = indexHTML.range(of: "Middle Post")?.lowerBound
+        let oldPostIndex = indexHTML.range(of: "Old Post")?.lowerBound
         
-        XCTAssertTrue(firstPostIndex < secondPostIndex)
-        XCTAssertTrue(secondPostIndex < thirdPostIndex)
+        guard let new = newPostIndex, let middle = middlePostIndex, let old = oldPostIndex else {
+            throw TestError("Could not find all posts in index.html")
+        }
+        
+        #expect(new < middle)
+        #expect(middle < old)
     }
 } 

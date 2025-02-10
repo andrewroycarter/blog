@@ -1,24 +1,25 @@
-import XCTest
+import Testing
+import Foundation
 @testable import blog
 
-final class PostTests: XCTestCase {
+struct PostTests {
     func testPostInitialization() throws {
         let date = Date()
         let post = Post(
             title: "Test Post",
             date: date,
-            tags: ["swift", "blogging"],
-            categories: ["programming"],
+            tags: ["test1", "test2"],
+            categories: ["cat1", "cat2"],
             slug: "test-post",
-            content: "This is a test post"
+            content: "Test content"
         )
         
-        XCTAssertEqual(post.title, "Test Post")
-        XCTAssertEqual(post.date, date)
-        XCTAssertEqual(post.tags, ["swift", "blogging"])
-        XCTAssertEqual(post.categories, ["programming"])
-        XCTAssertEqual(post.slug, "test-post")
-        XCTAssertEqual(post.content, "This is a test post")
+        #expect(post.title == "Test Post")
+        #expect(post.date == date)
+        #expect(post.tags == ["test1", "test2"])
+        #expect(post.categories == ["cat1", "cat2"])
+        #expect(post.slug == "test-post")
+        #expect(post.content == "Test content")
     }
     
     func testPostCoding() throws {
@@ -26,10 +27,10 @@ final class PostTests: XCTestCase {
         let originalPost = Post(
             title: "Test Post",
             date: date,
-            tags: ["swift", "blogging"],
-            categories: ["programming"],
+            tags: ["test1", "test2"],
+            categories: ["cat1", "cat2"],
             slug: "test-post",
-            content: "This is a test post"
+            content: "Test content"
         )
         
         let encoder = JSONEncoder()
@@ -38,11 +39,11 @@ final class PostTests: XCTestCase {
         let data = try encoder.encode(originalPost)
         let decodedPost = try decoder.decode(Post.self, from: data)
         
-        XCTAssertEqual(decodedPost.title, originalPost.title)
-        XCTAssertEqual(decodedPost.date, originalPost.date)
-        XCTAssertEqual(decodedPost.tags, originalPost.tags)
-        XCTAssertEqual(decodedPost.categories, originalPost.categories)
-        XCTAssertEqual(decodedPost.slug, originalPost.slug)
-        XCTAssertEqual(decodedPost.content, originalPost.content)
+        #expect(decodedPost.title == originalPost.title)
+        #expect(decodedPost.date == originalPost.date)
+        #expect(decodedPost.tags == originalPost.tags)
+        #expect(decodedPost.categories == originalPost.categories)
+        #expect(decodedPost.slug == originalPost.slug)
+        #expect(decodedPost.content == originalPost.content)
     }
 } 
