@@ -13,7 +13,8 @@ let package = Package(
         .library(name: "bloglib", targets: ["blog"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0")
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.2.0"),
+        .package(url: "https://github.com/apple/swift-testing.git", from: "0.5.0")
     ],
     targets: [
         .executableTarget(
@@ -27,6 +28,9 @@ let package = Package(
             dependencies: []),
         .testTarget(
             name: "tests",
-            dependencies: ["blog"])
+            dependencies: [
+                "blog",
+                .product(name: "Testing", package: "swift-testing")
+            ])
     ]
 )

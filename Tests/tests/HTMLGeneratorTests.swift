@@ -218,4 +218,51 @@ class HTMLGeneratorTests {
         #expect(new < middle)
         #expect(middle < old)
     }
+    
+    func testPostUpdates() async throws {
+        let publishDate = Date()
+        let firstUpdateDate = publishDate.addingTimeInterval(86400) // 1 day later
+        let secondUpdateDate = publishDate.addingTimeInterval(172800) // 2 days later
+        
+        let post = Post(
+            title: "Test Post",
+            date: publishDate,
+            tags: ["test"],
+            categories: ["cat"],
+            slug: "test-post",
+            content: "Original content",
+            updates: [
+                Update(date: firstUpdateDate, description: "Added new section"),
+                Update(date: secondUpdateDate, description: "Fixed typos")
+            ]
+        )
+        
+        let generator = HTMLGenerator(outputDirectory: testOutputPath, posts: [post])
+        try await generator.generate()
+        
+        let postHTML = try String(contentsOf: testOutputPath.appending(path: "posts/test-post/index.html"))
+        
+        // Check updates section exists
+        #expect(postHTML.contains("<section class=\"updates\">"))
+        #expect(postHTML.contains("<h2>Updates</h2>"))
+        
+        // Check updates are displayed in reverse chronological order
+        let firstUpdateIndex = postHTML.range(of: "Added new section")?.lowerBound
+        let secondUpdateIndex = postHTML.range(of: "Fixed typos")?.lowerBound
+        
+        guard let first = firstUpdateIndex, let second = secondUpdateIndex else {
+            throw TestError("Could not find update descriptions in HTML")
+        }
+        
+        #expect(second < first, "Updates should be displayed in reverse chronological order")
+        
+        // Check update dates are properly formatted
+        #expect(postHTML.contains(formatDate(firstUpdateDate)))
+        #expect(postHTML.contains(formatDate(secondUpdateDate)))
+        
+        // Check updates badge in post lists
+        let indexHTML = try String(contentsOf: testOutputPath.appending(path: "index.html"))
+        #expect(indexHTML.contains("<span class=\"update-badge\""))
+        #expect(indexHTML.contains("Last updated \(formatDate(secondUpdateDate))"))
+    }
 } 

@@ -64,7 +64,8 @@ public struct HTMLGenerator: Sendable {
     }
     
     private func generatePostHTML(_ post: Post) throws -> String {
-        let htmlContent = try markdownToHTML(post.content)
+        let htmlContent = try sanitizeHTML(markdownToHTML(post.content))
+        let updatesHTML = generateUpdatesHTML(post.updates)
         
         return """
         <!DOCTYPE html>
@@ -72,14 +73,25 @@ public struct HTMLGenerator: Sendable {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="description" content="Article about \(post.title)">
             <title>\(post.title)</title>
             <style>
+                :root {
+                    color-scheme: light dark;
+                }
                 body {
                     font-family: system-ui, -apple-system, sans-serif;
                     line-height: 1.6;
                     max-width: 800px;
                     margin: 0 auto;
-                    padding: 2rem;
+                    padding: 1rem;
+                    font-size: 16px;
+                }
+                @media (min-width: 640px) {
+                    body {
+                        padding: 2rem;
+                        font-size: 18px;
+                    }
                 }
                 .meta {
                     color: #666;
@@ -103,49 +115,177 @@ public struct HTMLGenerator: Sendable {
                     background: #eee;
                     border-radius: 3px;
                     font-size: 0.9rem;
+                    transition: background-color 0.2s;
+                }
+                .tag:hover, .category:hover {
+                    background: #ddd;
+                }
+                .updates {
+                    margin-top: 3rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid #eee;
+                }
+                .update-item {
+                    margin: 1rem 0;
+                }
+                .update-date {
+                    font-size: 0.9rem;
+                    color: #666;
                 }
                 pre {
                     background: #f6f8fa;
                     padding: 1rem;
                     border-radius: 6px;
                     overflow-x: auto;
+                    max-width: 100%;
                 }
                 code {
                     font-family: ui-monospace, monospace;
                     font-size: 0.9em;
                 }
+                img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                a {
+                    color: #0366d6;
+                    text-decoration: none;
+                }
+                a:hover {
+                    text-decoration: underline;
+                }
+                nav {
+                    margin-bottom: 2rem;
+                }
+                nav a {
+                    margin-right: 1rem;
+                    padding: 0.5rem 0;
+                }
+                @media (prefers-color-scheme: dark) {
+                    body {
+                        background-color: #1a1a1a;
+                        color: #e6e6e6;
+                    }
+                    .meta {
+                        color: #999;
+                    }
+                    .meta-label {
+                        color: #bbb;
+                    }
+                    .tag, .category {
+                        background: #333;
+                    }
+                    .tag:hover, .category:hover {
+                        background: #444;
+                    }
+                    pre {
+                        background: #2d2d2d;
+                    }
+                    a {
+                        color: #58a6ff;
+                    }
+                    .updates {
+                        border-top-color: #333;
+                    }
+                    .update-date {
+                        color: #999;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .meta-item {
+                        margin: 1rem 0;
+                    }
+                    .meta-label {
+                        display: block;
+                        margin-bottom: 0.25rem;
+                    }
+                }
             </style>
         </head>
         <body>
-            <nav>
-                <a href="../../">Home</a>
+            <nav role="navigation" aria-label="Main navigation">
+                <a href="../../" aria-label="Return to homepage">Home</a>
             </nav>
-            <article>
-                <h1>\(post.title)</h1>
-                <div class="meta">
-                    <div class="meta-item">
-                        <span class="meta-label">Published:</span>
-                        <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Categories:</span>
-                        <div class="categories">
-                            \(post.categories.map { "<a href=\"../../categories/\($0)\" class=\"category\">\($0)</a>" }.joined())
+            <main>
+                <article>
+                    <header>
+                        <h1>\(post.title)</h1>
+                        <div class="meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Published:</span>
+                                <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Categories:</span>
+                                <div class="categories" role="list">
+                                    \(post.categories.map { "<a href=\"../../categories/\($0)\" class=\"category\" role=\"listitem\">\($0)</a>" }.joined())
+                                </div>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Tags:</span>
+                                <div class="tags" role="list">
+                                    \(post.tags.map { "<a href=\"../../tags/\($0)\" class=\"tag\" role=\"listitem\">\($0)</a>" }.joined())
+                                </div>
+                            </div>
                         </div>
+                    </header>
+                    <div class="content">
+                        \(htmlContent)
                     </div>
-                    <div class="meta-item">
-                        <span class="meta-label">Tags:</span>
-                        <div class="tags">
-                            \(post.tags.map { "<a href=\"../../tags/\($0)\" class=\"tag\">\($0)</a>" }.joined())
-                        </div>
-                    </div>
-                </div>
-                <div class="content">
-                    \(htmlContent)
-                </div>
-            </article>
+                    \(updatesHTML)
+                </article>
+            </main>
+            <footer>
+                <p><small>Generated with Swift Blog Engine</small></p>
+            </footer>
         </body>
         </html>
+        """
+    }
+    
+    private func generateUpdatesHTML(_ updates: [Update]) -> String {
+        guard !updates.isEmpty else { return "" }
+        
+        let sortedUpdates = updates.sorted { $0.date > $1.date }
+        let updatesListHTML = sortedUpdates.map { update in
+            """
+            <div class="update-item">
+                <time class="update-date" datetime="\(update.date.ISO8601Format())">\(formatDate(update.date))</time>
+                <div class="update-description">\(update.description)</div>
+            </div>
+            """
+        }.joined()
+        
+        return """
+        <section class="updates">
+            <h2>Updates</h2>
+            \(updatesListHTML)
+        </section>
+        """
+    }
+    
+    private func generatePostPreviewHTML(_ post: Post, showFullContent: Bool = false) throws -> String {
+        let content = try sanitizeHTML(markdownToHTML(post.content))
+        let hasUpdates = !post.updates.isEmpty
+        let latestUpdate = post.updates.max(by: { $0.date < $1.date })
+        
+        return """
+        <article class="post">
+            <h2><a href="posts/\(post.slug)">\(post.title)</a></h2>
+            <div class="meta">
+                <time datetime="\(post.date.ISO8601Format())">\(formatDate(post.date))</time>
+                \(hasUpdates ? "<span class=\"update-badge\" title=\"Last updated \(formatDate(latestUpdate!.date))\">Updated</span>" : "")
+                <div class="categories">
+                    \(post.categories.map { "<a href=\"categories/\($0)\" class=\"category\">\($0)</a>" }.joined())
+                </div>
+                <div class="tags">
+                    \(post.tags.map { "<a href=\"tags/\($0)\" class=\"tag\">\($0)</a>" }.joined())
+                </div>
+            </div>
+            <div class="content">
+                \(showFullContent ? content : content.prefix(500) + "...")
+            </div>
+        </article>
         """
     }
     
@@ -171,7 +311,7 @@ public struct HTMLGenerator: Sendable {
                     </div>
                 </div>
                 <div class="content">
-                    \(try markdownToHTML(post.content))
+                    \(try sanitizeHTML(markdownToHTML(post.content)))
                 </div>
             </article>
         """
@@ -235,7 +375,7 @@ public struct HTMLGenerator: Sendable {
             </style>
         </head>
         <body>
-            <nav>
+            <nav role="navigation" aria-label="Main navigation">
                 <a href="categories">Categories</a>
                 <a href="tags">Tags</a>
             </nav>
@@ -312,7 +452,7 @@ public struct HTMLGenerator: Sendable {
             </style>
         </head>
         <body>
-            <nav>
+            <nav role="navigation" aria-label="Main navigation">
                 <a href="../../">Home</a>
                 <a href="../">Categories</a>
             </nav>
@@ -346,7 +486,7 @@ public struct HTMLGenerator: Sendable {
             </style>
         </head>
         <body>
-            <nav>
+            <nav role="navigation" aria-label="Main navigation">
                 <a href="../../">Home</a>
                 <a href="../">Tags</a>
             </nav>
@@ -380,7 +520,7 @@ public struct HTMLGenerator: Sendable {
             </style>
         </head>
         <body>
-            <nav>
+            <nav role="navigation" aria-label="Main navigation">
                 <a href="../">Home</a>
             </nav>
             <h1>Categories</h1>
@@ -413,7 +553,7 @@ public struct HTMLGenerator: Sendable {
             </style>
         </head>
         <body>
-            <nav>
+            <nav role="navigation" aria-label="Main navigation">
                 <a href="../">Home</a>
             </nav>
             <h1>Tags</h1>
@@ -605,5 +745,12 @@ public struct HTMLGenerator: Sendable {
         </body>
         </html>
         """
+    }
+    
+    private func sanitizeHTML(_ html: String) -> String {
+        // Basic HTML sanitization - remove script tags and their content
+        let scriptPattern = "<script[^>]*>.*?</script>"
+        let sanitized = html.replacingOccurrences(of: scriptPattern, with: "", options: [.regularExpression, .caseInsensitive])
+        return sanitized
     }
 } 

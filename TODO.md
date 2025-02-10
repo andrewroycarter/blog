@@ -8,7 +8,17 @@
     - [x] Define the main entry point for the command line tool
     - [x] Added ArgumentParser for clean CLI interface
     - [x] Created modular structure with separate `blog` library and `cli` executable
-    - [x] Added initial test infrastructure with XCTest for Linux compatibility
+    - [x] Added initial test infrastructure with Swift Testing framework for Linux compatibility
+    - [x] Modernized test suite to use latest Swift Testing patterns
+      - [x] Migrated from XCTest to Swift Testing framework
+      - [x] Updated test lifecycle management using class init/deinit
+      - [x] Improved test cleanup and resource management
+      - [x] Ensured proper async/await handling in tests
+    - [x] Added post update tracking
+      - [x] Added updates metadata to posts
+      - [x] Display updates chronologically at bottom of posts
+      - [x] Show update indicators in post lists
+      - [x] Added tests for update functionality
 
 - [x] **Content Structure**
   - [x] Setup Swift tool to run pointed at a directory of posts
@@ -44,6 +54,22 @@
     - [ ] Ensure the action checks out the code and runs the Swift build
   - [ ] Write a GitHub Action to build the static site as a zip artifact on a push to main, eventually this will be used to deploy the static site to a web host
 
+## Future Improvements
+
+- [ ] **Testing Enhancements**
+  - [ ] Add performance tests for concurrent post loading
+  - [ ] Add more comprehensive accessibility tests
+  - [ ] Consider adding snapshot tests for HTML output
+  - [ ] Add test coverage reporting
+
+- [ ] **Feature Enhancements**
+  - [ ] Add RSS feed generation
+  - [ ] Add sitemap.xml generation
+  - [ ] Add code syntax highlighting
+  - [ ] Add support for custom themes
+  - [ ] Add support for draft posts
+  - [ ] Add support for scheduled posts
+
 ## For all features
 
 - [x] **Swift Compatibility**
@@ -51,7 +77,7 @@
     - [x] Using standard Foundation types for cross-platform compatibility
     - [x] Avoiding platform-specific APIs
     - [x] Added platform requirement of macOS 13+ for modern Swift features
-    - [x] Using XCTest for testing to ensure Linux compatibility
+    - [x] Using Swift Testing framework for testing to ensure Linux compatibility
 
 ## Implementation Notes
 - Using ArgumentParser for a clean, type-safe CLI interface

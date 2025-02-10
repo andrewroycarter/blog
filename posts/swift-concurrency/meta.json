@@ -2,5 +2,11 @@
     "title": "Understanding Swift Concurrency",
     "date": "2024-02-10",
     "tags": ["swift", "programming", "concurrency"],
-    "categories": ["development", "tutorials"]
+    "categories": ["development", "tutorials"],
+    "updates": [
+        {
+            "date": "2024-02-11T09:30:00Z",
+            "description": "Added section about actor isolation and best practices"
+        }
+    ]
 } 
